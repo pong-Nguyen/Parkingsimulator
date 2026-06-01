@@ -24,7 +24,7 @@ static class Program
         var authService = new AuthService(authRepository);
         var paymentService = new PaymentService();
         var parkingLot = new ParkingLot(parkingRepository, paymentService, totalSlots);
-        var statisticsService = new StatisticsService(parkingRepository, totalSlots);
+        var statisticsService = new StatisticsService(parkingRepository, parkingLot);
 
         Application.Run(new LoginForm(authService, parkingLot, statisticsService));
     }    

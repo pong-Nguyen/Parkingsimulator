@@ -28,6 +28,9 @@ public class MainForm : Form
     private readonly System.Windows.Forms.Timer _autoDetectTimer = new();
     private readonly Random _random = new();
     private readonly CheckBox _chkAutoDetect = new();
+    private readonly Dictionary<VehicleType, NumericUpDown> _firstHourInputs = new();
+    private readonly Dictionary<VehicleType, NumericUpDown> _nextHourInputs = new();
+    private readonly Dictionary<VehicleType, NumericUpDown> _zoneCapacityInputs = new();
     private int _barrierStep;
 
     public MainForm(User currentUser, ParkingLot parkingLot, StatisticsService statisticsService)
@@ -90,7 +93,20 @@ public class MainForm : Form
             ForeColor = Color.FromArgb(209, 213, 219),
             TextAlign = ContentAlignment.MiddleRight
         };
+        var simulationButton = new Button
+        {
+            Text = "So do bai xe",
+            Dock = DockStyle.Right,
+            Width = 130,
+            BackColor = Color.FromArgb(37, 99, 235),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
+        };
+        simulationButton.FlatAppearance.BorderSize = 0;
+        simulationButton.Click += (_, _) => new ParkingSimulationForm(_parkingLot).Show(this);
         header.Controls.Add(user);
+        header.Controls.Add(simulationButton);
         header.Controls.Add(title);
         return header;
     }
@@ -168,6 +184,8 @@ public class MainForm : Form
         };
         panel.Controls.Add(BuildEntryBox());
         panel.Controls.Add(BuildExitBox());
+        panel.Controls.Add(BuildPricingBox());
+        panel.Controls.Add(BuildZoneConfigBox());
         panel.Controls.Add(BuildBarrierBox());
         return panel;
     }
@@ -218,6 +236,50 @@ public class MainForm : Form
         group.Controls.Add(btnManual);
         group.Controls.Add(_chkAutoDetect);
         group.Controls.Add(_lblRecognitionStatus);
+        return group;
+    }
+
+    private Control BuildPricingBox()
+    {
+        var group = MakeGroup("Dieu chinh gia tien", 350, 282);
+        group.Controls.Add(MakeSmallHint("Don vi: VND. He thong tinh theo gio dau va moi gio tiep theo."));
+
+        foreach (var type in Enum.GetValues<VehicleType>())
+        {
+            var rule = _parkingLot.PaymentService.PricingRules[type];
+            group.Controls.Add(MakeLabel(type.ToString()));
+            var row = new FlowLayoutPanel { Width = 300, Height = 34, FlowDirection = FlowDirection.LeftToRight };
+            var first = MakeMoneyInput(rule.FirstHourFee);
+            var next = MakeMoneyInput(rule.NextHourFee);
+            _firstHourInputs[type] = first;
+            _nextHourInputs[type] = next;
+            row.Controls.Add(first);
+            row.Controls.Add(next);
+            group.Controls.Add(row);
+        }
+
+        var save = MakePrimaryButton("Luu bang gia");
+        save.Click += SavePricingClick;
+        group.Controls.Add(save);
+        return group;
+    }
+
+    private Control BuildZoneConfigBox()
+    {
+        var group = MakeGroup("Phan vung bai xe", 350, 222);
+        group.Controls.Add(MakeSmallHint("Chia suc chua rieng cho xe dap, xe may va o to."));
+
+        foreach (var zone in _parkingLot.GetZones())
+        {
+            group.Controls.Add(MakeLabel(zone.Name));
+            var input = MakeCapacityInput(zone.Capacity);
+            _zoneCapacityInputs[zone.VehicleType] = input;
+            group.Controls.Add(input);
+        }
+
+        var save = MakePrimaryButton("Luu suc chua tung khu");
+        save.Click += SaveZonesClick;
+        group.Controls.Add(save);
         return group;
     }
 
@@ -430,6 +492,44 @@ public class MainForm : Form
         }
     }
 
+    private void SavePricingClick(object? sender, EventArgs e)
+    {
+        try
+        {
+            foreach (var type in Enum.GetValues<VehicleType>())
+            {
+                _parkingLot.PaymentService.UpdateRule(
+                    type,
+                    _firstHourInputs[type].Value,
+                    _nextHourInputs[type].Value);
+            }
+
+            MessageBox.Show("Da cap nhat bang gia tinh phi.", "Thanh cong", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Khong the luu bang gia", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    private void SaveZonesClick(object? sender, EventArgs e)
+    {
+        try
+        {
+            foreach (var type in Enum.GetValues<VehicleType>())
+            {
+                _parkingLot.UpdateZoneCapacity(type, (int)_zoneCapacityInputs[type].Value);
+            }
+
+            LoadDashboard();
+            MessageBox.Show("Da cap nhat suc chua tung khu.", "Thanh cong", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(ex.Message, "Khong the luu phan vung", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
     private void LoadDashboard()
     {
         var stats = _statisticsService.GetDashboardStats();
@@ -537,6 +637,17 @@ public class MainForm : Form
         };
     }
 
+    private static Label MakeSmallHint(string text)
+    {
+        return new Label
+        {
+            Text = text,
+            Width = 300,
+            Height = 34,
+            ForeColor = Color.FromArgb(107, 114, 128)
+        };
+    }
+
     private static Button MakePrimaryButton(string text)
     {
         var button = new Button
@@ -577,6 +688,34 @@ public class MainForm : Form
         textBox.BorderStyle = BorderStyle.FixedSingle;
         textBox.PlaceholderText = placeholder;
         textBox.CharacterCasing = CharacterCasing.Upper;
+    }
+
+    private static NumericUpDown MakeMoneyInput(decimal value)
+    {
+        return new NumericUpDown
+        {
+            Width = 145,
+            Height = 30,
+            Minimum = 0,
+            Maximum = 10000000,
+            Increment = 1000,
+            ThousandsSeparator = true,
+            Value = value,
+            Margin = new Padding(0, 0, 8, 0)
+        };
+    }
+
+    private static NumericUpDown MakeCapacityInput(int value)
+    {
+        return new NumericUpDown
+        {
+            Width = 300,
+            Height = 30,
+            Minimum = 0,
+            Maximum = 500,
+            Value = value,
+            Margin = new Padding(0, 0, 0, 4)
+        };
     }
 
     private void ConfigureVehicleType()

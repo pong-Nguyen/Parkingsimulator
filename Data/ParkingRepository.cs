@@ -61,6 +61,29 @@ public class ParkingRepository
         return ReadTickets(command);
     }
 
+    public Dictionary<VehicleType, int> CountActiveTicketsByType()
+    {
+        using var connection = _factory.CreateConnection();
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT v.Type, COUNT(*)
+            FROM ParkingTickets t
+            JOIN Vehicles v ON v.Id = t.VehicleId
+            WHERE t.IsPaid = 0 AND t.ExitTime IS NULL
+            GROUP BY v.Type;
+            """;
+
+        using var reader = command.ExecuteReader();
+        var counts = Enum.GetValues<VehicleType>().ToDictionary(type => type, _ => 0);
+        while (reader.Read())
+        {
+            counts[(VehicleType)reader.GetInt32(0)] = reader.GetInt32(1);
+        }
+
+        return counts;
+    }
+
     public int CreateEntryTicket(Vehicle vehicle, DateTime entryTime, int userId)
     {
         using var connection = _factory.CreateConnection();

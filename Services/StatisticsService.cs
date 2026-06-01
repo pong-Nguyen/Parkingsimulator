@@ -6,12 +6,12 @@ namespace SmartParkingSystem.Services;
 public class StatisticsService
 {
     private readonly ParkingRepository _repository;
-    private readonly int _totalSlots;
+    private readonly ParkingLot _parkingLot;
 
-    public StatisticsService(ParkingRepository repository, int totalSlots)
+    public StatisticsService(ParkingRepository repository, ParkingLot parkingLot)
     {
         _repository = repository;
-        _totalSlots = totalSlots;
+        _parkingLot = parkingLot;
     }
 
     public DashboardStats GetDashboardStats()
@@ -26,7 +26,7 @@ public class StatisticsService
         var startOfMonth = new DateTime(today.Year, today.Month, 1);
         return new DashboardStats
         {
-            TotalSlots = _totalSlots,
+            TotalSlots = _parkingLot.TotalSlots,
             CurrentVehicles = _repository.CountActiveTickets(),
             RevenueToday = _repository.GetRevenue(today, today.AddDays(1)),
             RevenueThisWeek = _repository.GetRevenue(startOfWeek, startOfWeek.AddDays(7)),

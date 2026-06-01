@@ -14,6 +14,9 @@ Phan mem mo phong bai gui xe thong minh bang C# WinForms va SQLite, thiet ke the
 - Dang nhap he thong theo vai tro Admin/Nhan vien.
 - Quan ly xe vao: bien so, loai xe, thoi gian vao.
 - Mo phong camera AI tu dong nhan dien xe vao: sinh bien so, loai xe, ghi ve vao bai va mo barie.
+- Dieu chinh bang gia gui xe truc tiep tren giao dien.
+- Chia bai xe thanh cac khu rieng cho Bicycle, Motorbike va Car.
+- Man hinh so do bai xe hien tai, mo bang nut `So do bai xe`.
 - Quan ly xe ra: tim bien so, tinh thoi gian gui va phi gui xe.
 - Hien thi tong so cho, so xe hien tai, so cho con trong.
 - Danh sach xe dang gui bang `DataGridView`.
@@ -32,6 +35,34 @@ Trong man hinh chinh, khu vuc `Xe vao - nhan dien tu dong` co 3 cach dung:
 - `Tu dong quet moi 5 giay`: he thong tu sinh xe vao theo chu ky, phu hop khi thuyet trinh mo phong.
 
 Sau khi nhan dien thanh cong, he thong cap nhat DataGridView, so cho trong, hien thong bao trang thai va mo/dong barie.
+
+## Dieu chinh gia tien
+
+Khu vuc `Dieu chinh gia tien` cho phep nhap:
+
+- Cot ben trai: gia gio dau.
+- Cot ben phai: gia moi gio tiep theo.
+
+Sau khi sua gia, bam `Luu bang gia`. Cac lan tinh phi xe ra sau do se dung bang gia moi.
+
+## Phan vung bai xe
+
+Khu vuc `Phan vung bai xe` chia bai thanh:
+
+- `Khu A - Xe dap`
+- `Khu B - Xe may`
+- `Khu C - O to`
+
+Moi khu co suc chua rieng. Neu khu cua loai xe da day, he thong se tu choi xe vao du tong bai van con cho o khu khac.
+
+## Man hinh mo phong bai do
+
+Tren thanh tieu de co nut `So do bai xe`. Bam nut nay de mo cua so so do hien tai:
+
+- O mau xanh: da co xe.
+- O mau xam: con trong.
+- Moi khu hien so xe dang do, suc chua va so cho trong.
+- Man hinh tu lam moi moi 3 giay.
 
 ## Cau truc thu muc
 
@@ -210,6 +241,15 @@ classDiagram
 
     class PaymentService {
         +CalculateFee()
+        +UpdateRule()
+    }
+
+    class ParkingZone {
+        +string Name
+        +VehicleType VehicleType
+        +int Capacity
+        +int Occupied
+        +int Available
     }
 
     class StatisticsService {
@@ -225,6 +265,7 @@ classDiagram
     ParkingTicket "1" --> "1" Payment
     ParkingLot --> ParkingTicket
     ParkingLot --> PaymentService
+    ParkingLot --> ParkingZone
     StatisticsService --> Payment
     AuthService --> User
 ```
