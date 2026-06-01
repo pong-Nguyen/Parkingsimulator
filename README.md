@@ -13,6 +13,7 @@ Phan mem mo phong bai gui xe thong minh bang C# WinForms va SQLite, thiet ke the
 
 - Dang nhap he thong theo vai tro Admin/Nhan vien.
 - Quan ly xe vao: bien so, loai xe, thoi gian vao.
+- Mo phong camera AI tu dong nhan dien xe vao: sinh bien so, loai xe, ghi ve vao bai va mo barie.
 - Quan ly xe ra: tim bien so, tinh thoi gian gui va phi gui xe.
 - Hien thi tong so cho, so xe hien tai, so cho con trong.
 - Danh sach xe dang gui bang `DataGridView`.
@@ -21,6 +22,16 @@ Phan mem mo phong bai gui xe thong minh bang C# WinForms va SQLite, thiet ke the
 - Luu lich su giao dich vao SQLite.
 - Thong ke doanh thu ngay, tuan, thang.
 - Mo phong barie mo/dong bang animation don gian.
+
+## Mo phong nhan dien xe vao
+
+Trong man hinh chinh, khu vuc `Xe vao - nhan dien tu dong` co 3 cach dung:
+
+- `Quet xe vao`: gia lap camera AI nhan dien mot xe moi, tu dong dien bien so, loai xe, thoi gian vao va ghi nhan vao bai.
+- `Ghi nhan thu cong`: dung khi muon tu nhap bien so va loai xe.
+- `Tu dong quet moi 5 giay`: he thong tu sinh xe vao theo chu ky, phu hop khi thuyet trinh mo phong.
+
+Sau khi nhan dien thanh cong, he thong cap nhat DataGridView, so cho trong, hien thong bao trang thai va mo/dong barie.
 
 ## Cau truc thu muc
 
