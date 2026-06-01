@@ -71,6 +71,11 @@ public class ParkingLot
         return _repository.SearchActiveTickets(keyword);
     }
 
+    public int DeleteActiveTickets(IEnumerable<int> ticketIds)
+    {
+        return _repository.DeleteActiveTickets(ticketIds);
+    }
+
     public List<ParkingZone> GetZones()
     {
         var counts = _repository.CountActiveTicketsByType();
