@@ -174,20 +174,32 @@ public class MainForm : Form
 
     private Control BuildLeftPanel()
     {
-        var panel = new FlowLayoutPanel
+        var scrollHost = new Panel
         {
             Dock = DockStyle.Fill,
+            AutoScroll = true,
+            Padding = new Padding(0, 0, 8, 0)
+        };
+        var panel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.TopDown,
             WrapContents = false,
-            AutoScroll = true,
-            Padding = new Padding(0, 0, 12, 0)
+            Padding = new Padding(0, 0, 12, 16)
+        };
+        panel.MouseWheel += (_, e) =>
+        {
+            var target = Math.Max(0, scrollHost.VerticalScroll.Value - e.Delta);
+            scrollHost.VerticalScroll.Value = Math.Min(target, scrollHost.VerticalScroll.Maximum);
         };
         panel.Controls.Add(BuildEntryBox());
         panel.Controls.Add(BuildExitBox());
         panel.Controls.Add(BuildPricingBox());
         panel.Controls.Add(BuildZoneConfigBox());
         panel.Controls.Add(BuildBarrierBox());
-        return panel;
+        scrollHost.Controls.Add(panel);
+        return scrollHost;
     }
 
     private Control BuildEntryBox()
@@ -241,7 +253,7 @@ public class MainForm : Form
 
     private Control BuildPricingBox()
     {
-        var group = MakeGroup("Dieu chinh gia tien", 350, 282);
+        var group = MakeGroup("Dieu chinh gia tien", 350, 342);
         group.Controls.Add(MakeSmallHint("Don vi: VND. He thong tinh theo gio dau va moi gio tiep theo."));
 
         foreach (var type in Enum.GetValues<VehicleType>())
@@ -266,7 +278,7 @@ public class MainForm : Form
 
     private Control BuildZoneConfigBox()
     {
-        var group = MakeGroup("Phan vung bai xe", 350, 222);
+        var group = MakeGroup("Phan vung bai xe", 350, 282);
         group.Controls.Add(MakeSmallHint("Chia suc chua rieng cho xe dap, xe may va o to."));
 
         foreach (var zone in _parkingLot.GetZones())
@@ -367,7 +379,7 @@ public class MainForm : Form
     private Control BuildGridPanel()
     {
         var panel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
         var searchPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8, 0, 0, 8) };
@@ -381,8 +393,20 @@ public class MainForm : Form
         btnRefresh.Top = 8;
         btnRefresh.Width = 110;
         btnRefresh.Click += (_, _) => LoadDashboard();
+        var btnCopyPlate = MakeSecondaryButton("Copy bien so");
+        btnCopyPlate.Left = 414;
+        btnCopyPlate.Top = 8;
+        btnCopyPlate.Width = 128;
+        btnCopyPlate.Click += CopySelectedPlateClick;
+        var btnDelete = MakeDangerButton("Xoa xe chon");
+        btnDelete.Left = 550;
+        btnDelete.Top = 8;
+        btnDelete.Width = 128;
+        btnDelete.Click += DeleteSelectedTicketsClick;
         searchPanel.Controls.Add(_txtSearch);
         searchPanel.Controls.Add(btnRefresh);
+        searchPanel.Controls.Add(btnCopyPlate);
+        searchPanel.Controls.Add(btnDelete);
 
         ConfigureGrid();
         panel.Controls.Add(searchPanel, 0, 0);
@@ -530,6 +554,44 @@ public class MainForm : Form
         }
     }
 
+    private void CopySelectedPlateClick(object? sender, EventArgs e)
+    {
+        var plate = GetFirstSelectedPlate();
+        if (plate is null)
+        {
+            MessageBox.Show("Vui long chon mot xe trong danh sach.", "Chua chon xe", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        _txtExitPlate.Text = plate;
+        Clipboard.SetText(plate);
+        MessageBox.Show($"Da copy bien so {plate} sang muc tinh tien.", "Da copy", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private void DeleteSelectedTicketsClick(object? sender, EventArgs e)
+    {
+        var ticketIds = GetSelectedTicketIds();
+        if (ticketIds.Count == 0)
+        {
+            MessageBox.Show("Vui long chon mot hoac nhieu xe can xoa.", "Chua chon xe", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var confirm = MessageBox.Show(
+            $"Ban co chac muon xoa {ticketIds.Count} xe dang gui da chon?\nTac vu nay chi xoa khoi danh sach hien tai, khong tao thanh toan.",
+            "Xac nhan xoa",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning);
+        if (confirm != DialogResult.Yes)
+        {
+            return;
+        }
+
+        var deleted = _parkingLot.DeleteActiveTickets(ticketIds);
+        LoadDashboard();
+        MessageBox.Show($"Da xoa {deleted} xe khoi bai.", "Da xoa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
     private void LoadDashboard()
     {
         var stats = _statisticsService.GetDashboardStats();
@@ -555,6 +617,27 @@ public class MainForm : Form
             })
             .ToList();
         _grid.DataSource = rows;
+    }
+
+    private string? GetFirstSelectedPlate()
+    {
+        if (_grid.SelectedRows.Count == 0)
+        {
+            return null;
+        }
+
+        return _grid.SelectedRows[0].Cells["BienSo"].Value?.ToString();
+    }
+
+    private List<int> GetSelectedTicketIds()
+    {
+        return _grid.SelectedRows
+            .Cast<DataGridViewRow>()
+            .Select(row => row.Cells["MaVe"].Value)
+            .Where(value => value is not null)
+            .Select(Convert.ToInt32)
+            .Distinct()
+            .ToList();
     }
 
     private string GeneratePlate()
@@ -681,6 +764,22 @@ public class MainForm : Form
         return button;
     }
 
+    private static Button MakeDangerButton(string text)
+    {
+        var button = new Button
+        {
+            Text = text,
+            Width = 300,
+            Height = 34,
+            BackColor = Color.FromArgb(220, 38, 38),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Margin = new Padding(0, 8, 0, 0)
+        };
+        button.FlatAppearance.BorderSize = 0;
+        return button;
+    }
+
     private static void ConfigureTextBox(TextBox textBox, string placeholder)
     {
         textBox.Width = 300;
@@ -734,6 +833,7 @@ public class MainForm : Form
         _grid.ReadOnly = true;
         _grid.AllowUserToAddRows = false;
         _grid.AllowUserToDeleteRows = false;
+        _grid.MultiSelect = true;
         _grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         _grid.RowHeadersVisible = false;
@@ -743,6 +843,14 @@ public class MainForm : Form
         _grid.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
         _grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(191, 219, 254);
         _grid.DefaultCellStyle.SelectionForeColor = Color.FromArgb(17, 24, 39);
+        _grid.CellDoubleClick += (_, _) =>
+        {
+            var plate = GetFirstSelectedPlate();
+            if (plate is not null)
+            {
+                _txtExitPlate.Text = plate;
+            }
+        };
     }
 
     private static string RequirePlate(string input)
