@@ -138,6 +138,35 @@ public class ParkingRepository
         transaction.Commit();
     }
 
+    public int DeleteActiveTickets(IEnumerable<int> ticketIds)
+    {
+        var ids = ticketIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return 0;
+        }
+
+        using var connection = _factory.CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        var deleted = 0;
+
+        foreach (var ticketId in ids)
+        {
+            using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                DELETE FROM ParkingTickets
+                WHERE Id = $ticketId AND IsPaid = 0 AND ExitTime IS NULL;
+                """;
+            command.Parameters.AddWithValue("$ticketId", ticketId);
+            deleted += command.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+        return deleted;
+    }
+
     public decimal GetRevenue(DateTime fromInclusive, DateTime toExclusive)
     {
         using var connection = _factory.CreateConnection();
