@@ -15,6 +15,7 @@ public class MainForm : Form
     private readonly TextBox _txtExitPlate = new();
     private readonly TextBox _txtSearch = new();
     private readonly DataGridView _grid = new();
+    private readonly Label _lblRecognitionStatus = new();
     private readonly Label _lblTotalSlots = new();
     private readonly Label _lblCurrentVehicles = new();
     private readonly Label _lblAvailableSlots = new();
@@ -24,6 +25,9 @@ public class MainForm : Form
     private readonly Panel _barrierArm = new();
     private readonly Label _lblBarrier = new();
     private readonly System.Windows.Forms.Timer _barrierTimer = new();
+    private readonly System.Windows.Forms.Timer _autoDetectTimer = new();
+    private readonly Random _random = new();
+    private readonly CheckBox _chkAutoDetect = new();
     private int _barrierStep;
 
     public MainForm(User currentUser, ParkingLot parkingLot, StatisticsService statisticsService)
@@ -61,6 +65,9 @@ public class MainForm : Form
 
         _barrierTimer.Interval = 55;
         _barrierTimer.Tick += BarrierTimerTick;
+
+        _autoDetectTimer.Interval = 5000;
+        _autoDetectTimer.Tick += (_, _) => DetectAndCheckInVehicle(showPopup: false);
     }
 
     private Control BuildHeader()
@@ -70,7 +77,7 @@ public class MainForm : Form
         {
             Text = "BAI GUI XE THONG MINH",
             Dock = DockStyle.Left,
-            Width = 420,
+            Width = 520,
             ForeColor = Color.White,
             TextAlign = ContentAlignment.MiddleLeft,
             Font = new Font("Segoe UI", 18F, FontStyle.Bold)
@@ -167,7 +174,7 @@ public class MainForm : Form
 
     private Control BuildEntryBox()
     {
-        var group = MakeGroup("Xe vao", 350, 224);
+        var group = MakeGroup("Xe vao - nhan dien tu dong", 350, 430);
         ConfigureTextBox(_txtEntryPlate, "Nhap bien so");
         ConfigureVehicleType();
         _dtEntry.Format = DateTimePickerFormat.Custom;
@@ -175,22 +182,48 @@ public class MainForm : Form
         _dtEntry.Value = DateTime.Now;
         _dtEntry.Width = 300;
 
-        var btn = MakePrimaryButton("Ghi nhan xe vao");
-        btn.Click += CheckInClick;
+        var cameraPanel = BuildCameraPanel();
+        var btnDetect = MakePrimaryButton("Quet xe vao");
+        btnDetect.Click += (_, _) => DetectAndCheckInVehicle(showPopup: true);
+        var btnManual = MakeSecondaryButton("Ghi nhan thu cong");
+        btnManual.Click += CheckInClick;
 
+        _chkAutoDetect.Text = "Tu dong quet moi 5 giay";
+        _chkAutoDetect.Width = 300;
+        _chkAutoDetect.Height = 26;
+        _chkAutoDetect.ForeColor = Color.FromArgb(55, 65, 81);
+        _chkAutoDetect.CheckedChanged += (_, _) =>
+        {
+            if (_chkAutoDetect.Checked)
+            {
+                _autoDetectTimer.Start();
+                SetRecognitionStatus("Dang bat che do nhan dien tu dong...", false);
+            }
+            else
+            {
+                _autoDetectTimer.Stop();
+                SetRecognitionStatus("Da tat che do nhan dien tu dong.", false);
+            }
+        };
+        SetRecognitionStatus("San sang nhan dien xe vao.", true);
+
+        group.Controls.Add(cameraPanel);
         group.Controls.Add(MakeLabel("Bien so"));
         group.Controls.Add(_txtEntryPlate);
         group.Controls.Add(MakeLabel("Loai xe"));
         group.Controls.Add(_cboVehicleType);
         group.Controls.Add(MakeLabel("Thoi gian vao"));
         group.Controls.Add(_dtEntry);
-        group.Controls.Add(btn);
+        group.Controls.Add(btnDetect);
+        group.Controls.Add(btnManual);
+        group.Controls.Add(_chkAutoDetect);
+        group.Controls.Add(_lblRecognitionStatus);
         return group;
     }
 
     private Control BuildExitBox()
     {
-        var group = MakeGroup("Xe ra", 350, 160);
+        var group = MakeGroup("Xe ra", 350, 188);
         ConfigureTextBox(_txtExitPlate, "Nhap bien so can tim");
         var btnPreview = MakeSecondaryButton("Tim va tinh phi");
         btnPreview.Click += PreviewExitClick;
@@ -201,6 +234,48 @@ public class MainForm : Form
         group.Controls.Add(btnPreview);
         group.Controls.Add(btnPay);
         return group;
+    }
+
+    private Control BuildCameraPanel()
+    {
+        var panel = new Panel
+        {
+            Width = 300,
+            Height = 68,
+            BackColor = Color.FromArgb(15, 23, 42),
+            Margin = new Padding(0, 2, 0, 8)
+        };
+        var lens = new Panel
+        {
+            Width = 42,
+            Height = 42,
+            Left = 18,
+            Top = 13,
+            BackColor = Color.FromArgb(37, 99, 235)
+        };
+        var title = new Label
+        {
+            Text = "CAMERA AI - CONG VAO",
+            Left = 74,
+            Top = 12,
+            Width = 210,
+            Height = 22,
+            ForeColor = Color.White,
+            Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
+        };
+        var status = new Label
+        {
+            Text = "San sang quet bien so",
+            Left = 74,
+            Top = 35,
+            Width = 210,
+            Height = 22,
+            ForeColor = Color.FromArgb(147, 197, 253)
+        };
+        panel.Controls.Add(lens);
+        panel.Controls.Add(title);
+        panel.Controls.Add(status);
+        return panel;
     }
 
     private Control BuildBarrierBox()
@@ -261,6 +336,7 @@ public class MainForm : Form
             var type = (VehicleType)_cboVehicleType.SelectedItem!;
             _parkingLot.CheckIn(plate, type, _dtEntry.Value, _currentUser.Id);
             AnimateBarrier();
+            SetRecognitionStatus($"Da nhan xe {plate} vao bai luc {_dtEntry.Value:HH:mm:ss}.", true);
             MessageBox.Show("Da ghi nhan xe vao bai.", "Thanh cong", MessageBoxButtons.OK, MessageBoxIcon.Information);
             _txtEntryPlate.Clear();
             _dtEntry.Value = DateTime.Now;
@@ -268,7 +344,42 @@ public class MainForm : Form
         }
         catch (Exception ex)
         {
+            SetRecognitionStatus(ex.Message, false);
             MessageBox.Show(ex.Message, "Khong the cho xe vao", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    private void DetectAndCheckInVehicle(bool showPopup)
+    {
+        try
+        {
+            _dtEntry.Value = DateTime.Now;
+            _txtEntryPlate.Text = GeneratePlate();
+            _cboVehicleType.SelectedItem = GenerateVehicleType();
+
+            var plate = RequirePlate(_txtEntryPlate.Text);
+            var type = (VehicleType)_cboVehicleType.SelectedItem!;
+            _parkingLot.CheckIn(plate, type, _dtEntry.Value, _currentUser.Id);
+            AnimateBarrier();
+            LoadDashboard();
+            SetRecognitionStatus($"Nhan dien thanh cong: {plate} - {type}. Barie da mo.", true);
+
+            if (showPopup)
+            {
+                MessageBox.Show(
+                    $"He thong da tu dong nhan dien xe vao.\nBien so: {plate}\nLoai xe: {type}\nThoi gian: {_dtEntry.Value:dd/MM/yyyy HH:mm:ss}",
+                    "Nhan dien thanh cong",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetRecognitionStatus(ex.Message, false);
+            if (showPopup)
+            {
+                MessageBox.Show(ex.Message, "Nhan dien that bai", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
     }
 
@@ -344,6 +455,27 @@ public class MainForm : Form
             })
             .ToList();
         _grid.DataSource = rows;
+    }
+
+    private string GeneratePlate()
+    {
+        var prefixes = new[] { "29A", "30F", "36B", "37A", "43C", "51G", "60A", "75B" };
+        return $"{prefixes[_random.Next(prefixes.Length)]}-{_random.Next(10000, 99999)}";
+    }
+
+    private VehicleType GenerateVehicleType()
+    {
+        var types = new[] { VehicleType.Motorbike, VehicleType.Motorbike, VehicleType.Car, VehicleType.Bicycle };
+        return types[_random.Next(types.Length)];
+    }
+
+    private void SetRecognitionStatus(string message, bool success)
+    {
+        _lblRecognitionStatus.Text = message;
+        _lblRecognitionStatus.Width = 300;
+        _lblRecognitionStatus.Height = 42;
+        _lblRecognitionStatus.ForeColor = success ? Color.FromArgb(21, 128, 61) : Color.FromArgb(185, 28, 28);
+        _lblRecognitionStatus.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
     }
 
     private void AnimateBarrier()
