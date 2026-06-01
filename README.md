@@ -17,6 +17,8 @@ Phan mem mo phong bai gui xe thong minh bang C# WinForms va SQLite, thiet ke the
 - Dieu chinh bang gia gui xe truc tiep tren giao dien.
 - Chia bai xe thanh cac khu rieng cho Bicycle, Motorbike va Car.
 - Man hinh so do bai xe hien tai, mo bang nut `So do bai xe`.
+- Copy bien so xe dang chon sang muc tinh tien xe ra.
+- Xoa mot hoac nhieu xe dang gui khi chon tren DataGridView.
 - Quan ly xe ra: tim bien so, tinh thoi gian gui va phi gui xe.
 - Hien thi tong so cho, so xe hien tai, so cho con trong.
 - Danh sach xe dang gui bang `DataGridView`.
@@ -35,6 +37,13 @@ Trong man hinh chinh, khu vuc `Xe vao - nhan dien tu dong` co 3 cach dung:
 - `Tu dong quet moi 5 giay`: he thong tu sinh xe vao theo chu ky, phu hop khi thuyet trinh mo phong.
 
 Sau khi nhan dien thanh cong, he thong cap nhat DataGridView, so cho trong, hien thong bao trang thai va mo/dong barie.
+
+## Thao tac tren danh sach xe
+
+- Chon mot dong va bam `Copy bien so` de dua bien so sang o `Xe ra`.
+- Co the double-click vao dong xe de dien nhanh bien so sang o `Xe ra`.
+- Giu `Ctrl` hoac `Shift` de chon nhieu xe, sau do bam `Xoa xe chon` de xoa khoi danh sach xe dang gui.
+- Nut xoa chi xoa xe dang gui, khong tao giao dich thanh toan.
 
 ## Dieu chinh gia tien
 
